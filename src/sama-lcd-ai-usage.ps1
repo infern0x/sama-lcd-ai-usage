@@ -17,7 +17,7 @@
 #>
 param(
   [string]$Port = '',                 # serial port; auto-detected by USB VID/PID when empty
-  [int]$Fps = 15,                     # animation frame rate
+  [int]$Fps = 10,                     # animation frame rate
   [int]$FetchSeconds = 300,           # how often usage is fetched from the APIs
   [ValidateSet(0, 90, 180, 270)][int]$Rotate = 0,   # match how the cooler is mounted
   [switch]$Once,                      # send one frame and exit
@@ -120,40 +120,61 @@ function Format-Left($when) {
 }
 function LevelColor([double]$p) { if ($p -ge 85) { $ColBad } elseif ($p -ge 60) { $ColWarn } else { $ColOk } }
 
-function Draw-RoundRect($g, $brush, [float]$x, [float]$y, [float]$w, [float]$h, [float]$r) {
+function New-RoundRectPath([float]$x, [float]$y, [float]$w, [float]$h, [float]$r) {
   $p = New-Object System.Drawing.Drawing2D.GraphicsPath
   $p.AddArc($x, $y, 2*$r, 2*$r, 180, 90); $p.AddArc($x+$w-2*$r, $y, 2*$r, 2*$r, 270, 90)
   $p.AddArc($x+$w-2*$r, $y+$h-2*$r, 2*$r, 2*$r, 0, 90); $p.AddArc($x, $y+$h-2*$r, 2*$r, 2*$r, 90, 90); $p.CloseFigure()
+  return ,$p
+}
+function Draw-RoundRect($g, $brush, [float]$x, [float]$y, [float]$w, [float]$h, [float]$r) {
+  $p = New-RoundRectPath $x $y $w $h $r
   $g.FillPath($brush, $p); $p.Dispose()
 }
+function Get-Mood($u) {
+  # 0 calm (<60%), 1 worried (60-85%), 2 stressed (>=85%), from the higher of the two windows
+  if ($u.Error) { return 0 }
+  $m = [Math]::Max([double]$u.S, [double]$u.W)
+  if ($m -ge 85) { 2 } elseif ($m -ge 60) { 1 } else { 0 }
+}
+$Brand = @{ Claude = (C '#D97757'); Codex = (C '#10A37F') }
+$LeftW = 236          # width of the logo column inside each card
 
 function Draw-Card($g, [float]$top, [string]$name, $u) {
-  $x = 36; $w = $Size - 72; $h = 292
-  Draw-RoundRect $g (New-Object System.Drawing.SolidBrush($ColCard)) $x $top $w $h 26
-  # the logo at (82, top+44) is drawn per frame (animated) by CoolerLcd.Animator
-  $fName = New-Object System.Drawing.Font('Segoe UI Semibold', 30)
-  $fPlan = New-Object System.Drawing.Font('Segoe UI', 20)
-  $g.DrawString($name, $fName, (New-Object System.Drawing.SolidBrush($ColText)), $x + 80, $top + 16)
-  if ($u.Plan) { $sz = $g.MeasureString($name, $fName); $g.DrawString(([string]$u.Plan).ToUpper(), $fPlan, (New-Object System.Drawing.SolidBrush($ColDim)), $x + 88 + $sz.Width, $top + 27) }
+  # v2 layout: left column = brand glow + animated logo (drawn per frame by CoolerLcd.Animator,
+  # centred at x=142, y=top+104) + name + plan; right column = the two usage rows.
+  $x = 24; $w = $Size - 48; $h = 300
+  $card = New-RoundRectPath $x $top $w $h 28
+  $g.FillPath((New-Object System.Drawing.SolidBrush($ColCard)), $card)
+  $glowAlpha = if ($name -eq 'Claude') { 120 } else { 80 }
+  [CoolerLcd.Animator]::Glow($g, $card, ($x + $LeftW / 2), ($top + 112), 200, $Brand[$name], $glowAlpha)
+  $card.Dispose()
+  $sfC = New-Object System.Drawing.StringFormat; $sfC.Alignment = 'Center'
+  $fName = New-Object System.Drawing.Font('Segoe UI Semibold', 24)
+  $fPlan = New-Object System.Drawing.Font('Segoe UI', 15)
+  $g.DrawString($name, $fName, (New-Object System.Drawing.SolidBrush($ColText)), (New-Object System.Drawing.RectangleF($x, ($top + 206), $LeftW, 40)), $sfC)
+  if ($u.Plan) { $g.DrawString(([string]$u.Plan).ToUpper(), $fPlan, (New-Object System.Drawing.SolidBrush($ColDim)), (New-Object System.Drawing.RectangleF($x, ($top + 244), $LeftW, 30)), $sfC) }
+  $g.FillRectangle((New-Object System.Drawing.SolidBrush($ColTrack)), ($x + $LeftW), ($top + 28), 2, ($h - 56))
+  $rx = $x + $LeftW + 22
+  $right = $x + $w - 24
   if ($u.Error) {
-    $g.DrawString($u.Error, (New-Object System.Drawing.Font('Segoe UI', 22)), (New-Object System.Drawing.SolidBrush($ColBad)), (New-Object System.Drawing.RectangleF(($x + 28), ($top + 90), ($w - 56), 180)))
+    $g.DrawString($u.Error, (New-Object System.Drawing.Font('Segoe UI', 20)), (New-Object System.Drawing.SolidBrush($ColBad)), (New-Object System.Drawing.RectangleF($rx, ($top + 40), ($right - $rx), 230)))
     return
   }
   $rows = @(@{ L = '5-hour'; P = $u.S; R = $u.SReset }, @{ L = 'Weekly'; P = $u.W; R = $u.WReset })
-  $fLbl = New-Object System.Drawing.Font('Segoe UI', 22); $fPct = New-Object System.Drawing.Font('Segoe UI Semibold', 40); $fRst = New-Object System.Drawing.Font('Segoe UI', 21)
-  $ry = $top + 84
+  $fLbl = New-Object System.Drawing.Font('Segoe UI', 19); $fPct = New-Object System.Drawing.Font('Segoe UI Semibold', 40); $fRst = New-Object System.Drawing.Font('Segoe UI', 18)
+  $ry = $top + 28
   foreach ($row in $rows) {
     $pct = [Math]::Max(0, [Math]::Min(100, [double]$row.P))
-    $col = LevelColor $pct
-    $g.DrawString($row.L, $fLbl, (New-Object System.Drawing.SolidBrush($ColDim)), $x + 28, $ry + 12)
-    $g.DrawString(('{0:0}%' -f $pct), $fPct, (New-Object System.Drawing.SolidBrush($col)), $x + 150, $ry)
+    $barColor = LevelColor $pct
+    $g.DrawString($row.L, $fLbl, (New-Object System.Drawing.SolidBrush($ColDim)), $rx, $ry + 4)
     $rst = 'resets in ' + (Format-Left $row.R)
     $rsz = $g.MeasureString($rst, $fRst)
-    $g.DrawString($rst, $fRst, (New-Object System.Drawing.SolidBrush($ColText)), $x + $w - 28 - $rsz.Width, $ry + 14)
-    $by = $ry + 68; $bw = $w - 56
-    Draw-RoundRect $g (New-Object System.Drawing.SolidBrush($ColTrack)) ($x + 28) $by $bw 14 7
-    if ($pct -gt 0) { Draw-RoundRect $g (New-Object System.Drawing.SolidBrush($col)) ($x + 28) $by ([Math]::Max(14, $bw * $pct / 100)) 14 7 }
-    $ry += 100
+    $g.DrawString($rst, $fRst, (New-Object System.Drawing.SolidBrush($ColText)), $right - $rsz.Width, $ry + 6)
+    $g.DrawString(('{0:0}%' -f $pct), $fPct, (New-Object System.Drawing.SolidBrush($barColor)), ($rx - 6), $ry + 34)
+    $bx = $rx + 4; $bw = $right - $bx - 4; $by = $ry + 108
+    Draw-RoundRect $g (New-Object System.Drawing.SolidBrush($ColTrack)) $bx $by $bw 14 7
+    if ($pct -gt 0) { Draw-RoundRect $g (New-Object System.Drawing.SolidBrush($barColor)) $bx $by ([Math]::Max(14, $bw * $pct / 100)) 14 7 }
+    $ry += 134
   }
 }
 
@@ -162,14 +183,14 @@ function Render-Base($claude, $codex, $fetchedAt) {
   $g = [System.Drawing.Graphics]::FromImage($bmp)
   $g.SmoothingMode = 'AntiAlias'; $g.TextRenderingHint = 'AntiAliasGridFit'
   $g.Clear($ColBg)
-  $fClock = New-Object System.Drawing.Font('Segoe UI Semibold', 34)
-  $fSmall = New-Object System.Drawing.Font('Segoe UI', 18)
-  $g.DrawString((Get-Date).ToString('HH:mm'), $fClock, (New-Object System.Drawing.SolidBrush($ColText)), 40, 26)
+  $fClock = New-Object System.Drawing.Font('Segoe UI Semibold', 30)
+  $fSmall = New-Object System.Drawing.Font('Segoe UI', 17)
+  $g.DrawString((Get-Date).ToString('HH:mm'), $fClock, (New-Object System.Drawing.SolidBrush($ColText)), 36, 14)
   $upd = if ($fetchedAt) { 'updated ' + $fetchedAt.ToString('HH:mm') } else { 'no data yet' }
   $us = $g.MeasureString($upd, $fSmall)
-  $g.DrawString($upd, $fSmall, (New-Object System.Drawing.SolidBrush($ColDim)), $Size - 40 - $us.Width, 44)
-  Draw-Card $g 100 'Claude' $claude
-  Draw-Card $g 410 'Codex'  $codex
+  $g.DrawString($upd, $fSmall, (New-Object System.Drawing.SolidBrush($ColDim)), $Size - 36 - $us.Width, 28)
+  Draw-Card $g 92  'Claude' $claude
+  Draw-Card $g 408 'Codex'  $codex
   $g.Dispose()
   if ($Rotate) { $bmp.RotateFlip(@{ 90 = 'Rotate90FlipNone'; 180 = 'Rotate180FlipNone'; 270 = 'Rotate270FlipNone' }[$Rotate]) }
   return $bmp
@@ -249,8 +270,10 @@ $anim = New-Object CoolerLcd.Animator
 $anim.Rotate = $Rotate
 
 if ($Demo -and $SavePng) {                            # offline preview, no screen needed
-  $base = Render-Base (Get-DemoUsage 'claude') (Get-DemoUsage 'codex') (Get-Date)
-  [void]$anim.Compose($base, 0.3)
+  $dc = Get-DemoUsage 'claude'; $dx = Get-DemoUsage 'codex'
+  $anim.ClaudeMood = Get-Mood $dc; $anim.CodexMood = Get-Mood $dx
+  $base = Render-Base $dc $dx (Get-Date)
+  [void]$anim.Compose($base, 0.45)
   $anim.LastFrame.Save($SavePng, [System.Drawing.Imaging.ImageFormat]::Png)
   Log "preview saved to $SavePng"
   return
@@ -271,6 +294,7 @@ while ($true) {
         try { $codex = Get-CodexUsage } catch { $codex = @{ Error = $_.Exception.Message } }
       }
       $fetchedAt = Get-Date; $lastFetch = Get-Date; $baseMinute = ''
+      $anim.ClaudeMood = Get-Mood $claude; $anim.CodexMood = Get-Mood $codex
       Log ("usage claude={0}/{1} codex={2}/{3}" -f $claude.S, $claude.W, $codex.S, $codex.W)
       if ($claude.Error) { Log "claude: $($claude.Error)" }; if ($codex.Error) { Log "codex: $($codex.Error)" }
     }

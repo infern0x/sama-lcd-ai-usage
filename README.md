@@ -8,7 +8,7 @@
 
 ## 中文
 
-把 **先马（SAMA）一体水冷冷头的 LCD 屏幕**变成 AI 用量面板，实时显示 **Claude Code** 和 **OpenAI Codex** 的 5 小时 / 每周用量和重置倒计时。两个 logo 会以 15 fps 流畅转动。
+把 **先马（SAMA）一体水冷冷头的 LCD 屏幕**变成 AI 用量面板，实时显示 **Claude Code** 和 **OpenAI Codex** 的 5 小时 / 每周用量和重置倒计时。每张卡片左边是一个大号动画 logo，它的"心情"会跟着用量变化。
 
 不需要先马的官方软件，只用 Windows 自带的 PowerShell 和 .NET，没有任何第三方依赖。
 
@@ -17,7 +17,9 @@
 - **Claude**（Pro / Max）和 **Codex**（ChatGPT Plus / Pro）的 5 小时窗口、每周窗口用量百分比
 - 每项都显示距离重置还剩多久
 - 颜色提示：绿色低于 60%，橙色 60–85%，红色 85% 及以上
-- 动画 logo：只把变化的像素用增量帧发给屏幕，占用约为单核 CPU 的 15%
+- 大号动画 logo：Claude 是一个原创的橙色像素小人（会走路、眨眼），Codex 是一个旋转的环结；卡片带品牌色光晕
+- logo 心情随用量变化：60% 以下悠闲；60–85% 紧张、冒一滴汗；85% 及以上小人变成 `> <` 眼、冒汗、摇晃，环结变红并加速
+- 只把变化的像素用增量帧发给屏幕，10 fps 时约占单核 CPU 的 20%
 - 开机自动启动（计划任务，不需要管理员权限）；断线自动重连，进程意外退出后 5 分钟内自动拉起
 - 支持 0 / 90 / 180 / 270 度旋转，适配冷头的安装方向
 
@@ -61,7 +63,7 @@ powershell -ExecutionPolicy Bypass -File install.ps1 -Rotate 180
 | 参数 | 默认值 | 作用 |
 |---|---|---|
 | `-Rotate` | `0` | 画面旋转角度：0 / 90 / 180 / 270 |
-| `-Fps` | `15` | 动画帧率 |
+| `-Fps` | `10` | 动画帧率 |
 | `-Port` | 自动 | 串口号，例如 `COM3`。默认按 USB ID 自动查找 |
 | `-FetchSeconds` | `300` | 多久拉取一次用量（秒） |
 | `-Demo -SavePng x.png` | | 用示例数据生成一张预览图，不需要屏幕 |
@@ -89,7 +91,7 @@ powershell -ExecutionPolicy Bypass -File uninstall.ps1
 
 ## English
 
-Turns the **LCD on a SAMA AIO liquid-cooler pump head** into a live AI usage panel. It shows **Claude Code** and **OpenAI Codex** 5-hour / weekly limits with reset countdowns, plus smoothly animated logos at 15 fps.
+Turns the **LCD on a SAMA AIO liquid-cooler pump head** into a live AI usage panel. It shows **Claude Code** and **OpenAI Codex** 5-hour / weekly limits with reset countdowns, plus a big animated logo per card whose "mood" follows your usage.
 
 No vendor software is needed. It is plain Windows PowerShell + .NET with zero third-party dependencies.
 
@@ -98,7 +100,9 @@ No vendor software is needed. It is plain Windows PowerShell + .NET with zero th
 - 5-hour and weekly usage for **Claude** (Pro / Max) and **Codex** (ChatGPT Plus / Pro)
 - Time left until each limit resets
 - Colour cues: green < 60 %, amber 60–85 %, red ≥ 85 %
-- Animated logos sent as tiny delta frames (≈15 % of one CPU core)
+- Big animated logos: an original orange pixel critter for Claude (walks, blinks) and a spinning knot for Codex, each with a brand-colour glow
+- Logos react to usage: calm below 60 %; worried with a sweat drop at 60–85 %; at 85 % and above the critter gets `> <` eyes, sweats and sways, and the knot turns red and speeds up
+- Only changed pixels are sent as delta frames (≈20 % of one CPU core at 10 fps)
 - Starts at sign-in (Scheduled Task, no admin rights); reconnects automatically and is restarted within 5 minutes if it ever exits
 - 0 / 90 / 180 / 270° rotation to match how the cooler is mounted
 
@@ -138,7 +142,7 @@ This copies the app to `%LOCALAPPDATA%\Programs\sama-lcd-ai-usage` and registers
 | Option | Default | Purpose |
 |---|---|---|
 | `-Rotate` | `0` | 0 / 90 / 180 / 270 |
-| `-Fps` | `15` | Animation frame rate |
+| `-Fps` | `10` | Animation frame rate |
 | `-Port` | auto | Serial port such as `COM3`; auto-detected by USB ID |
 | `-FetchSeconds` | `300` | How often usage is fetched |
 | `-Demo -SavePng x.png` | | Render a preview with sample data; no screen needed |

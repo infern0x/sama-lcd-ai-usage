@@ -3,11 +3,11 @@
     - copies src\ to %LOCALAPPDATA%\Programs\sama-lcd-ai-usage
     - registers a Scheduled Task "sama-lcd-ai-usage" (at logon, hidden, no admin rights needed)
   Usage:
-    powershell -ExecutionPolicy Bypass -File install.ps1 [-Rotate 180] [-Fps 15] [-Port COM3]
+    powershell -ExecutionPolicy Bypass -File install.ps1 [-Rotate 180] [-Fps 10] [-Port COM3]
 #>
 param(
   [ValidateSet(0, 90, 180, 270)][int]$Rotate = 0,
-  [ValidateRange(1, 30)][int]$Fps = 15,
+  [ValidateRange(1, 30)][int]$Fps = 10,
   [string]$Port = '',
   [switch]$NoStart
 )
