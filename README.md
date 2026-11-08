@@ -39,7 +39,7 @@
 ### 安装
 
 ```powershell
-git clone https://github.com/a640419/sama-lcd-ai-usage.git
+git clone https://github.com/infern0x/sama-lcd-ai-usage.git
 cd sama-lcd-ai-usage
 powershell -ExecutionPolicy Bypass -File install.ps1
 ```
@@ -120,7 +120,7 @@ Other SAMA screens built on the Turing/TURZX platform (XW / ZW / MW / KW series)
 ### Install
 
 ```powershell
-git clone https://github.com/a640419/sama-lcd-ai-usage.git
+git clone https://github.com/infern0x/sama-lcd-ai-usage.git
 cd sama-lcd-ai-usage
 powershell -ExecutionPolicy Bypass -File install.ps1
 ```
