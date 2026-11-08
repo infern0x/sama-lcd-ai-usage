@@ -32,7 +32,10 @@ Write-Host "Installed to $Dest"
 $argList = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$Dest\sama-lcd-ai-usage.ps1`" -Rotate $Rotate -Fps $Fps"
 if ($Port) { $argList += " -Port $Port" }
 $user = "$env:USERDOMAIN\$env:USERNAME"
-$action = New-ScheduledTaskAction -Execute "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument $argList -WorkingDirectory $Dest
+# Run through `conhost --headless` so no console window appears at all. On Windows 11 a plain
+# powershell.exe launch is handed to Windows Terminal, whose window -WindowStyle Hidden cannot hide.
+$psExe = "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe"
+$action = New-ScheduledTaskAction -Execute "$env:WINDIR\System32\conhost.exe" -Argument "--headless `"$psExe`" $argList" -WorkingDirectory $Dest
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
 $trigger.Delay = 'PT20S'
 # watchdog: every 5 minutes, start it again if it is not running (e.g. killed by an installer).
