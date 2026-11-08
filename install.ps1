@@ -35,12 +35,15 @@ $user = "$env:USERDOMAIN\$env:USERNAME"
 $action = New-ScheduledTaskAction -Execute "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument $argList -WorkingDirectory $Dest
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
 $trigger.Delay = 'PT20S'
+# watchdog: every 5 minutes, start it again if it is not running (e.g. killed by an installer).
+# MultipleInstances=IgnoreNew + the script's own mutex prevent duplicates.
+$watchdog = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 5)
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) `
   -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
 $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
 Register-ScheduledTask -TaskName $TaskName -Description 'Claude / Codex usage on the SAMA cooler LCD' `
-  -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null
-Write-Host "Scheduled task '$TaskName' registered (starts 20 s after sign-in)."
+  -Action $action -Trigger @($trigger, $watchdog) -Settings $settings -Principal $principal -Force | Out-Null
+Write-Host "Scheduled task '$TaskName' registered (starts 20 s after sign-in, re-checked every 5 min)."
 
 if (-not $NoStart) {
   Start-ScheduledTask -TaskName $TaskName

@@ -18,7 +18,7 @@
 - 每项都显示距离重置还剩多久
 - 颜色提示：绿色低于 60%，橙色 60–85%，红色 85% 及以上
 - 动画 logo：只把变化的像素用增量帧发给屏幕，占用约为单核 CPU 的 15%
-- 开机自动启动（计划任务，不需要管理员权限）；断线自动重连
+- 开机自动启动（计划任务，不需要管理员权限）；断线自动重连，进程意外退出后 5 分钟内自动拉起
 - 支持 0 / 90 / 180 / 270 度旋转，适配冷头的安装方向
 
 ### 兼容硬件
@@ -99,7 +99,7 @@ No vendor software is needed. It is plain Windows PowerShell + .NET with zero th
 - Time left until each limit resets
 - Colour cues: green < 60 %, amber 60–85 %, red ≥ 85 %
 - Animated logos sent as tiny delta frames (≈15 % of one CPU core)
-- Starts at sign-in (Scheduled Task, no admin rights); reconnects automatically
+- Starts at sign-in (Scheduled Task, no admin rights); reconnects automatically and is restarted within 5 minutes if it ever exits
 - 0 / 90 / 180 / 270° rotation to match how the cooler is mounted
 
 ### Supported hardware
