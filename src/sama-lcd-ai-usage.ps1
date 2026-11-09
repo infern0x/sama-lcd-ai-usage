@@ -281,22 +281,36 @@ if ($Demo -and $SavePng) {                            # offline preview, no scre
 
 Log "start (pid $PID, fps $Fps, rotate $Rotate)"
 $claude = @{ Error = 'loading...' }; $codex = @{ Error = 'loading...' }; $fetchedAt = $null; $lastFetch = [datetime]::MinValue
+$fetchInterval = $FetchSeconds        # grows (x2, max 600 s) while an API answers 429, then returns to normal
+
+function Merge-Usage($old, $new) {
+  # keep showing the last good numbers when a single fetch fails
+  if ($new.Error -and $old -and -not $old.Error) { $old.Stale = $true; return $old }
+  return $new
+}
 $sp = $null; $base = $null; $baseMinute = ''; $prev = $null; $id = 0
 $clock = [Diagnostics.Stopwatch]::StartNew(); $lastStatus = 0
 $frameMs = [int](1000 / [Math]::Max(1, $Fps))
 
 while ($true) {
   try {
-    if (((Get-Date) - $lastFetch).TotalSeconds -ge $FetchSeconds) {
-      if ($Demo) { $claude = Get-DemoUsage 'claude'; $codex = Get-DemoUsage 'codex' }
+    if (((Get-Date) - $lastFetch).TotalSeconds -ge $fetchInterval) {
+      if ($Demo) { $newClaude = Get-DemoUsage 'claude'; $newCodex = Get-DemoUsage 'codex' }
       else {
-        try { $claude = Get-ClaudeUsage } catch { $claude = @{ Error = $_.Exception.Message } }
-        try { $codex = Get-CodexUsage } catch { $codex = @{ Error = $_.Exception.Message } }
+        try { $newClaude = Get-ClaudeUsage } catch { $newClaude = @{ Error = $_.Exception.Message } }
+        try { $newCodex = Get-CodexUsage } catch { $newCodex = @{ Error = $_.Exception.Message } }
       }
-      $fetchedAt = Get-Date; $lastFetch = Get-Date; $baseMinute = ''
+      if ($newClaude.Error) { Log "claude: $($newClaude.Error)" }; if ($newCodex.Error) { Log "codex: $($newCodex.Error)" }
+      # back off while rate limited (HTTP 429), recover to the configured interval afterwards
+      if ("$($newClaude.Error) $($newCodex.Error)" -match '429|Too Many Requests') {
+        $fetchInterval = [Math]::Min(600, [Math]::Max($FetchSeconds, $fetchInterval) * 2)
+        Log "rate limited, next fetch in $fetchInterval s"
+      } else { $fetchInterval = $FetchSeconds }
+      $claude = Merge-Usage $claude $newClaude; $codex = Merge-Usage $codex $newCodex
+      if (-not $newClaude.Error -or -not $newCodex.Error) { $fetchedAt = Get-Date }
+      $lastFetch = Get-Date; $baseMinute = ''
       $anim.ClaudeMood = Get-Mood $claude; $anim.CodexMood = Get-Mood $codex
       Log ("usage claude={0}/{1} codex={2}/{3}" -f $claude.S, $claude.W, $codex.S, $codex.W)
-      if ($claude.Error) { Log "claude: $($claude.Error)" }; if ($codex.Error) { Log "codex: $($codex.Error)" }
     }
     $minute = (Get-Date).ToString('yyyyMMddHHmm')     # static part re-rendered once a minute
     if ($minute -ne $baseMinute) {

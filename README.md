@@ -65,7 +65,7 @@ powershell -ExecutionPolicy Bypass -File install.ps1 -Rotate 180
 | `-Rotate` | `0` | 画面旋转角度：0 / 90 / 180 / 270 |
 | `-Fps` | `10` | 动画帧率 |
 | `-Port` | 自动 | 串口号，例如 `COM3`。默认按 USB ID 自动查找 |
-| `-FetchSeconds` | `300` | 多久拉取一次用量（秒） |
+| `-FetchSeconds` | `300` | 多久拉取一次用量（秒），最小 30。例如 `install.ps1 -FetchSeconds 60` 就是每分钟一次 |
 | `-Demo -SavePng x.png` | | 用示例数据生成一张预览图，不需要屏幕 |
 
 修改参数后重新运行 `install.ps1` 即可。
@@ -80,7 +80,7 @@ powershell -ExecutionPolicy Bypass -File uninstall.ps1
 
 ### 工作原理
 
-- 用量数据来自本机已登录的凭据，只发往 Anthropic / OpenAI 的官方接口，不会发到其他地方。Claude 的登录令牌快过期时，会用 Claude Code 相同的流程自动续期。
+- 用量数据来自本机已登录的凭据，只发往 Anthropic / OpenAI 的官方接口，不会发到其他地方。Claude 的登录令牌快过期时，会用 Claude Code 相同的流程自动续期。查询用量不消耗额度。接口返回 429（请求太频繁）时会自动把间隔翻倍（最长 10 分钟），偶尔请求失败时屏幕继续显示上一次的数据。
 - 屏幕协议是在分析先马软件的通信行为之后，自己重新实现的。详见 [PROTOCOL.md](PROTOCOL.md)。
 
 ### 免责声明
@@ -144,7 +144,7 @@ This copies the app to `%LOCALAPPDATA%\Programs\sama-lcd-ai-usage` and registers
 | `-Rotate` | `0` | 0 / 90 / 180 / 270 |
 | `-Fps` | `10` | Animation frame rate |
 | `-Port` | auto | Serial port such as `COM3`; auto-detected by USB ID |
-| `-FetchSeconds` | `300` | How often usage is fetched |
+| `-FetchSeconds` | `300` | How often usage is fetched, in seconds (min 30). For example `install.ps1 -FetchSeconds 60` fetches every minute |
 | `-Demo -SavePng x.png` | | Render a preview with sample data; no screen needed |
 
 To change options, run `install.ps1` again with the new values.
@@ -159,7 +159,7 @@ Then start the SAMA app again to get its original display back.
 
 ### How it works
 
-- Usage comes from your existing local logins and is only sent to Anthropic's and OpenAI's own endpoints. When the Claude token is about to expire, it is refreshed using the same flow as Claude Code.
+- Usage comes from your existing local logins and is only sent to Anthropic's and OpenAI's own endpoints. When the Claude token is about to expire, it is refreshed using the same flow as Claude Code. Checking usage does not use up any quota. If an endpoint answers HTTP 429, the fetch interval doubles (up to 10 minutes), and after a failed fetch the last good numbers stay on screen.
 - The screen protocol was re-implemented independently after observing how the vendor app talks to the device. See [PROTOCOL.md](PROTOCOL.md).
 
 ### Disclaimer

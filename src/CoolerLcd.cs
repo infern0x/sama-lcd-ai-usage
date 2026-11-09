@@ -182,7 +182,7 @@ namespace CoolerLcd
         // ---- Codex knot: six rounded loops; speed and colour follow the mood
         public static void DrawCodex(Graphics g, float cx, float cy, float r, double t, int mood)
         {
-            Color col = mood == 2 ? ColorTranslator.FromHtml("#FF6B6B") : mood == 1 ? ColorTranslator.FromHtml("#FFC46B") : ColorTranslator.FromHtml("#F2F4F8");
+            Color col = mood == 2 ? ColorTranslator.FromHtml("#FF6B6B") : mood == 1 ? ColorTranslator.FromHtml("#FFD84D") : ColorTranslator.FromHtml("#F2F4F8");
             if (mood == 2)
             {
                 double p = 0.75 + 0.25 * Math.Sin(t * 2.5);     // slow pulse

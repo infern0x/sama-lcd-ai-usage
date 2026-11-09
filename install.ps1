@@ -3,11 +3,12 @@
     - copies src\ to %LOCALAPPDATA%\Programs\sama-lcd-ai-usage
     - registers a Scheduled Task "sama-lcd-ai-usage" (at logon, hidden, no admin rights needed)
   Usage:
-    powershell -ExecutionPolicy Bypass -File install.ps1 [-Rotate 180] [-Fps 10] [-Port COM3]
+    powershell -ExecutionPolicy Bypass -File install.ps1 [-Rotate 180] [-Fps 10] [-FetchSeconds 60] [-Port COM3]
 #>
 param(
   [ValidateSet(0, 90, 180, 270)][int]$Rotate = 0,
   [ValidateRange(1, 30)][int]$Fps = 10,
+  [ValidateRange(30, 3600)][int]$FetchSeconds = 300,
   [string]$Port = '',
   [switch]$NoStart
 )
@@ -29,7 +30,7 @@ New-Item -ItemType Directory -Force $Dest | Out-Null
 Copy-Item (Join-Path $Src '*') $Dest -Force
 Write-Host "Installed to $Dest"
 
-$argList = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$Dest\sama-lcd-ai-usage.ps1`" -Rotate $Rotate -Fps $Fps"
+$argList = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$Dest\sama-lcd-ai-usage.ps1`" -Rotate $Rotate -Fps $Fps -FetchSeconds $FetchSeconds"
 if ($Port) { $argList += " -Port $Port" }
 $user = "$env:USERDOMAIN\$env:USERNAME"
 # Run through `conhost --headless` so no console window appears at all. On Windows 11 a plain
